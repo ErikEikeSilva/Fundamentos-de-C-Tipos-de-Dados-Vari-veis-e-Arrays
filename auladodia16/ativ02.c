@@ -1,14 +1,6 @@
-//função c - tipos de Retorno e portu
-
-
-
-
-
-
-
 // Funções em C - Tipos de Retorno e Parâmetros
 
-#include <stdio.h>
+#include<stdio.h>
 
 // Função sem parâmetros e sem retorno
 void saudacao() {
@@ -28,7 +20,12 @@ int soma(int a, int b) {
 int main() {
     saudacao();
 
-    exibirMensagem("Isso é um exemplo");
+    exibirMensagem("Isso é um exemplo de função com parâmetros");
+
+    int x = 5, y = 3;
+    int resultado = soma(x, y);
+
+    printf("A soma de %d + %d = %d\n", x, y, resultado);
 
     return 0;
 }

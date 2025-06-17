@@ -57,6 +57,7 @@
   "C_Cpp_Runner.useLinkTimeOptimization": false,
   "files.associations": {
     "ativ01": "c",
-    "stdio.h": "c"
+    "stdio.h": "c",
+    "string.h": "c"
   }
 }
