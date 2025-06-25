@@ -58,6 +58,7 @@
   "files.associations": {
     "ativ01": "c",
     "stdio.h": "c",
-    "string.h": "c"
+    "string.h": "c",
+    "ativi01": "c"
   }
 }
