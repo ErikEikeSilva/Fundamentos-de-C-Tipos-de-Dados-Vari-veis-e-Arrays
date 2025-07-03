@@ -1,87 +1,40 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <ctype.h>
-#include <time.h>
 
-// Definições de constantes
-#define MAX_CLIENTES 500
-#define MAX_INSTRUTORES 50
-#define ARQUIVO_CLIENTES "clientes_cnh.dat"
-#define ARQUIVO_INSTRUTORES "instrutores.dat"
-#define LOGIN_ADMIN "admin"
-#define SENHA_ADMIN 1234
-#define LOGIN_INSTRUTOR "instrutor"
-#define SENHA_INSTRUTOR 5678
+// Definição de constantes
+#define MAX_CLIENTES 100
+#define ARQUIVO_CLIENTES "clientes_cnh.txt"
+#define LOGIN_AD "admin"
+#define SENHA_AD 1234
 
-// Estruturas de dados
+// Estrutura para um cliente
 typedef struct {
     char nome[100];
     char cpf[15];
-    char rg[15];
-    char endereco[100];
-    char telefone[15];
-    char email[50];
     int idade;
-    char tipo_servico[30]; // Primeira habilitação, Renovação, Mudança de categoria
-    char categoria[5];     // A, B, AB, C, D, E
-    char status[50];
-    int aulas_teoricas_completas;
-    int aulas_praticas_completas;
-    char data_exame_teorico[11];
-    char data_exame_pratico[11];
-    char medico_responsavel[50];
-    char instrutor[50];
-    float valor_total;
-    float valor_pago;
-    char data_matricula[11];
-    char data_vencimento[11];
-    int reprovacoes_teorico;
-    int reprovacoes_pratico;
+    char tipo_servico[30];
+    char categoria[5];
+    char status[30];
 } Cliente;
 
-typedef struct {
-    char nome[100];
-    char cpf[15];
-    char registro[20];
-    char categorias[20]; // Categorias que pode ministrar (ex: "ABDE")
-    int ativo;
-} Instrutor;
-
-// Variáveis globais
+// Array global de clientes e contador
 Cliente clientes[MAX_CLIENTES];
-Instrutor instrutores[MAX_INSTRUTORES];
 int total_clientes = 0;
-int total_instrutores = 0;
-int usuario_logado = 0; // 0 = não logado, 1 = admin, 2 = instrutor
 
-// Protótipos de funções
+// --- PROTÓTIPOS DE FUNÇÕES ---
 void limparTela();
 void limparBufferEntrada();
 int validarCPF(const char *cpf);
-int validarData(const char *data);
-int validarEmail(const char *email);
-int validarTelefone(const char *telefone);
 void salvarDados();
 void carregarDados();
-void salvarInstrutores();
-void carregarInstrutores();
 void cadastrarCliente();
-void editarCliente();
 void listarClientes();
-void buscarCliente();
-void registrarAula();
-void agendarExame();
-void registrarPagamento();
-void cadastrarInstrutor();
-void listarInstrutores();
-void gerarRelatorios();
-void menuAdmin();
-void menuInstrutor();
-void login();
-void configurarSistema();
+void buscarPorCPF();
+void atualizarStatus();
+void exibirMenuPrincipal();
 
-// Implementação das funções
+// --- DEFINIÇÕES DAS FUNÇÕES ---
 
 void limparTela() {
 #ifdef _WIN32
@@ -98,272 +51,329 @@ void limparBufferEntrada() {
 
 int validarCPF(const char *cpf) {
     if (strlen(cpf) != 11) {
+        printf("CPF deve ter 11 digitos.\n");
         return 0;
     }
     
     for (int i = 0; i < 11; i++) {
-        if (!isdigit(cpf[i])) {
+        if (cpf[i] < '0' || cpf[i] > '9') {
+            printf("CPF deve conter apenas numeros.\n");
             return 0;
         }
     }
-    
-    // Validar dígitos verificadores (opcional)
-    return 1;
-}
-
-int validarData(const char *data) {
-    if (strlen(data) != 10) return 0;
-    if (data[2] != '/' || data[5] != '/') return 0;
-    
-    int dia, mes, ano;
-    sscanf(data, "%d/%d/%d", &dia, &mes, &ano);
-    
-    if (dia < 1 || dia > 31) return 0;
-    if (mes < 1 || mes > 12) return 0;
-    if (ano < 1900 || ano > 2100) return 0;
-    
-    return 1;
-}
-
-int validarEmail(const char *email) {
-    int tem_arroba = 0, tem_ponto = 0;
-    for (int i = 0; email[i] != '\0'; i++) {
-        if (email[i] == '@') tem_arroba = 1;
-        if (email[i] == '.' && tem_arroba) tem_ponto = 1;
-    }
-    return tem_arroba && tem_ponto;
-}
-
-int validarTelefone(const char *telefone) {
-    if (strlen(telefone) < 10 || strlen(telefone) > 11) return 0;
-    
-    for (int i = 0; telefone[i] != '\0'; i++) {
-        if (!isdigit(telefone[i])) return 0;
-    }
-    
     return 1;
 }
 
 void salvarDados() {
-    FILE *arquivo = fopen(ARQUIVO_CLIENTES, "wb");
+    FILE *arquivo = fopen(ARQUIVO_CLIENTES, "w");
     if (arquivo == NULL) {
-        printf("Erro ao abrir arquivo de clientes para escrita.\n");
+        printf("Erro ao abrir o arquivo para salvar os dados.\n");
         return;
     }
-    
-    fwrite(&total_clientes, sizeof(int), 1, arquivo);
-    fwrite(clientes, sizeof(Cliente), total_clientes, arquivo);
-    
+
+    for (int i = 0; i < total_clientes; i++) {
+        fprintf(arquivo, "%s|%s|%d|%s|%s|%s\n",
+                clientes[i].nome,
+                clientes[i].cpf,
+                clientes[i].idade,
+                clientes[i].tipo_servico,
+                clientes[i].categoria,
+                clientes[i].status);
+    }
+
     fclose(arquivo);
 }
 
 void carregarDados() {
-    FILE *arquivo = fopen(ARQUIVO_CLIENTES, "rb");
+    FILE *arquivo = fopen(ARQUIVO_CLIENTES, "r");
     if (arquivo == NULL) {
-        printf("Arquivo de clientes não encontrado. Iniciando com lista vazia.\n");
+        printf("Arquivo de dados nao encontrado. Iniciando com lista vazia.\n");
         return;
     }
-    
-    fread(&total_clientes, sizeof(int), 1, arquivo);
-    fread(clientes, sizeof(Cliente), total_clientes, arquivo);
-    
-    fclose(arquivo);
-    printf("Dados de clientes carregados. Total: %d\n", total_clientes);
-}
 
-void salvarInstrutores() {
-    FILE *arquivo = fopen(ARQUIVO_INSTRUTORES, "wb");
-    if (arquivo == NULL) {
-        printf("Erro ao abrir arquivo de instrutores para escrita.\n");
-        return;
+    total_clientes = 0;
+    while (fscanf(arquivo, " %99[^|]|%14[^|]|%d|%29[^|]|%4[^|]|%29[^\n]\n",
+                 clientes[total_clientes].nome,
+                 clientes[total_clientes].cpf,
+                 &clientes[total_clientes].idade,
+                 clientes[total_clientes].tipo_servico,
+                 clientes[total_clientes].categoria,
+                 clientes[total_clientes].status) == 6) {
+        total_clientes++;
+        if (total_clientes >= MAX_CLIENTES) break;
     }
-    
-    fwrite(&total_instrutores, sizeof(int), 1, arquivo);
-    fwrite(instrutores, sizeof(Instrutor), total_instrutores, arquivo);
-    
-    fclose(arquivo);
-}
 
-void carregarInstrutores() {
-    FILE *arquivo = fopen(ARQUIVO_INSTRUTORES, "rb");
-    if (arquivo == NULL) {
-        printf("Arquivo de instrutores não encontrado. Iniciando com lista vazia.\n");
-        return;
-    }
-    
-    fread(&total_instrutores, sizeof(int), 1, arquivo);
-    fread(instrutores, sizeof(Instrutor), total_instrutores, arquivo);
-    
     fclose(arquivo);
-    printf("Dados de instrutores carregados. Total: %d\n", total_instrutores);
+    printf("Dados carregados com sucesso. Total de clientes: %d\n", total_clientes);
 }
 
 void cadastrarCliente() {
     if (total_clientes >= MAX_CLIENTES) {
-        printf("Limite máximo de clientes atingido.\n");
+        printf("Limite maximo de clientes atingido (%d).\n", MAX_CLIENTES);
+        printf("Pressione ENTER para continuar...");
+        limparBufferEntrada();
         return;
     }
-    
+
     Cliente novo;
-    time_t t = time(NULL);
-    struct tm tm = *localtime(&t);
     
-    printf("\n--- CADASTRO DE NOVO ALUNO ---\n");
+    printf("\n--- CADASTRO DE CLIENTE ---\n");
     
-    // Dados pessoais
+    // Nome
     printf("Nome completo: ");
     limparBufferEntrada();
     fgets(novo.nome, sizeof(novo.nome), stdin);
     novo.nome[strcspn(novo.nome, "\n")] = '\0';
-    
+
+    // CPF
     do {
-        printf("CPF (apenas números): ");
+        printf("CPF (apenas numeros, 11 digitos): ");
         scanf("%14s", novo.cpf);
     } while (!validarCPF(novo.cpf));
-    
-    printf("RG: ");
-    scanf("%14s", novo.rg);
-    
+
+    // Idade
     printf("Idade: ");
-    scanf("%d", &novo.idade);
-    
-    limparBufferEntrada();
-    printf("Endereço: ");
-    fgets(novo.endereco, sizeof(novo.endereco), stdin);
-    novo.endereco[strcspn(novo.endereco, "\n")] = '\0';
-    
-    do {
-        printf("Telefone: ");
-        scanf("%14s", novo.telefone);
-    } while (!validarTelefone(novo.telefone));
-    
-    do {
-        printf("E-mail: ");
-        scanf("%49s", novo.email);
-    } while (!validarEmail(novo.email));
-    
+    while (scanf("%d", &novo.idade) != 1 || novo.idade < 18) {
+        printf("Idade invalida. Deve ser maior ou igual a 18 anos: ");
+        limparBufferEntrada();
+    }
+
     // Tipo de serviço
-    int opcao;
-    printf("\nTipo de serviço:\n");
-    printf("1 - Primeira habilitação\n");
-    printf("2 - Renovação\n");
-    printf("3 - Mudança de categoria\n");
-    printf("4 - Adição de categoria\n");
+    int opcao_servico;
+    printf("\nTipo de servico:\n");
+    printf("1 - Primeira habilitacao\n");
+    printf("2 - Renovacao\n");
+    printf("3 - Mudanca de categoria\n");
     printf("Escolha: ");
-    scanf("%d", &opcao);
     
-    switch(opcao) {
-        case 1: strcpy(novo.tipo_servico, "Primeira habilitação"); break;
-        case 2: strcpy(novo.tipo_servico, "Renovação"); break;
-        case 3: strcpy(novo.tipo_servico, "Mudança de categoria"); break;
-        case 4: strcpy(novo.tipo_servico, "Adição de categoria"); break;
-        default: strcpy(novo.tipo_servico, "Primeira habilitação");
+    while (scanf("%d", &opcao_servico) != 1 || opcao_servico < 1 || opcao_servico > 3) {
+        printf("Opcao invalida. Escolha 1, 2 ou 3: ");
+        limparBufferEntrada();
     }
     
+    switch(opcao_servico) {
+        case 1: strcpy(novo.tipo_servico, "Primeira habilitacao"); break;
+        case 2: strcpy(novo.tipo_servico, "Renovacao"); break;
+        case 3: strcpy(novo.tipo_servico, "Mudanca de categoria"); break;
+    }
+
     // Categoria
-    printf("\nCategorias disponíveis:\n");
+    printf("\nCategorias disponiveis:\n");
     printf("A - Motocicletas\n");
-    printf("B - Carros de passeio\n");
+    printf("B - Carros\n");
     printf("AB - Carros e Motocicletas\n");
-    printf("C - Veículos pesados\n");
-    printf("D - Ônibus\n");
+    printf("C - Veiculos pesados\n");
+    printf("D - Onibus\n");
     printf("E - Carretas\n");
+    printf("Digite a categoria desejada: ");
     
-    do {
-        printf("Digite a categoria desejada: ");
-        scanf("%4s", novo.categoria);
-    } while (strcmp(novo.categoria, "A") != 0 &&
-             strcmp(novo.categoria, "B") != 0 &&
-             strcmp(novo.categoria, "AB") != 0 &&
-             strcmp(novo.categoria, "C") != 0 &&
-             strcmp(novo.categoria, "D") != 0 &&
-             strcmp(novo.categoria, "E") != 0);
-    
-    // Instrutor
-    if (total_instrutores > 0) {
-        printf("\nInstrutores disponíveis:\n");
-        for (int i = 0; i < total_instrutores; i++) {
-            if (instrutores[i].ativo) {
-                printf("%d - %s (%s)\n", i+1, instrutores[i].nome, instrutores[i].categorias);
-            }
-        }
-        printf("Escolha o instrutor (0 para nenhum): ");
-        int instrutor_escolhido;
-        scanf("%d", &instrutor_escolhido);
-        
-        if (instrutor_escolhido > 0 && instrutor_escolhido <= total_instrutores) {
-            strcpy(novo.instrutor, instrutores[instrutor_escolhido-1].nome);
-        } else {
-            strcpy(novo.instrutor, "Não atribuído");
-        }
-    } else {
-        strcpy(novo.instrutor, "Não atribuído");
-    }
-    
-    // Valores
-    if (strcmp(novo.tipo_servico, "Primeira habilitação") == 0) {
-        novo.valor_total = 1500.00;
-    } else {
-        novo.valor_total = 800.00;
-    }
-    novo.valor_pago = 0.00;
-    
-    // Datas
-    sprintf(novo.data_matricula, "%02d/%02d/%04d", tm.tm_mday, tm.tm_mon+1, tm.tm_year+1900);
-    sprintf(novo.data_vencimento, "%02d/%02d/%04d", tm.tm_mday, tm.tm_mon+1, tm.tm_year+1901);
+    scanf("%4s", novo.categoria);
+    limparBufferEntrada();
     
     // Status inicial
-    strcpy(novo.status, "Matriculado");
-    novo.aulas_teoricas_completas = 0;
-    novo.aulas_praticas_completas = 0;
-    strcpy(novo.data_exame_teorico, "00/00/0000");
-    strcpy(novo.data_exame_pratico, "00/00/0000");
-    strcpy(novo.medico_responsavel, "A definir");
-    novo.reprovacoes_teorico = 0;
-    novo.reprovacoes_pratico = 0;
-    
+    strcpy(novo.status, "Cadastro inicial");
+
     // Adiciona ao array
     clientes[total_clientes++] = novo;
     salvarDados();
     
-    printf("\nAluno cadastrado com sucesso!\n");
-    printf("Valor total: R$ %.2f\n", novo.valor_total);
+    printf("\nCliente cadastrado com sucesso!\n");
     printf("Pressione ENTER para continuar...");
     limparBufferEntrada();
 }
 
-// [Continuação com as outras funções...]
-
-void login() {
+void listarClientes() {
     limparTela();
-    char login[50];
+    printf("\n============================================================================================================\n");
+    printf("|                                         RELATORIO DE ATENDIMENTOS                                          |\n");
+    printf("=============================================================================================================\n");
+    
+    if (total_clientes == 0) {
+        printf("\nNenhum cliente cadastrado.\n");
+        printf("=============================================================================================\n");
+        printf("Pressione ENTER para continuar...");
+        limparBufferEntrada();
+        return;
+    }
+
+    printf("| %-30s | %-11s | %-5s | %-20s | %-4s | %-20s |\n", 
+           "Nome", "CPF", "Idade", "Servico", "Cat.", "Status");
+    printf("------------------------------------------------------------------------------------------------------------\n");
+    
+    for (int i = 0; i < total_clientes; i++) {
+        printf("| %-30s | %s | %-5d | %-20s | %-4s | %-20s |\n",
+               clientes[i].nome,
+               clientes[i].cpf,
+               clientes[i].idade,
+               clientes[i].tipo_servico,
+               clientes[i].categoria,
+               clientes[i].status);
+    }
+    
+    printf("=============================================================================================================\n");
+    printf("\nTotal de clientes: %d\n", total_clientes);
+    printf("Pressione ENTER para continuar...");
+    limparBufferEntrada();
+}
+
+void buscarPorCPF() {
+    char cpf_busca[15];
+    int encontrado = 0;
+    
+    printf("\nDigite o CPF para buscar (apenas numeros): ");
+    scanf("%14s", cpf_busca);
+    limparBufferEntrada();
+    
+    if (!validarCPF(cpf_busca)) {
+        printf("CPF invalido.\n");
+        printf("Pressione ENTER para continuar...");
+        limparBufferEntrada();
+        return;
+    }
+    
+    limparTela();
+    printf("\n=== RESULTADO DA BUSCA ===\n");
+    
+    for (int i = 0; i < total_clientes; i++) {
+        if (strcmp(clientes[i].cpf, cpf_busca) == 0) {
+            printf("\nNome: %s\n", clientes[i].nome);
+            printf("CPF: %s\n", clientes[i].cpf);
+            printf("Idade: %d\n", clientes[i].idade);
+            printf("Tipo de servico: %s\n", clientes[i].tipo_servico);
+            printf("Categoria: %s\n", clientes[i].categoria);
+            printf("Status atual: %s\n", clientes[i].status);
+            encontrado = 1;
+            break;
+        }
+    }
+    
+    if (!encontrado) {
+        printf("\nCliente com CPF %s nao encontrado.\n", cpf_busca);
+    }
+    
+    printf("\nPressione ENTER para continuar...");
+    limparBufferEntrada();
+}
+
+void atualizarStatus() {
+    char cpf_busca[15];
+    int encontrado = 0;
+    
+    printf("\nDigite o CPF do cliente para atualizar status: ");
+    scanf("%14s", cpf_busca);
+    limparBufferEntrada();
+    
+    if (!validarCPF(cpf_busca)) {
+        printf("CPF invalido.\n");
+        printf("Pressione ENTER para continuar...");
+        limparBufferEntrada();
+        return;
+    }
+    
+    for (int i = 0; i < total_clientes; i++) {
+        if (strcmp(clientes[i].cpf, cpf_busca) == 0) {
+            printf("\nCliente encontrado:\n");
+            printf("Nome: %s\n", clientes[i].nome);
+            printf("Status atual: %s\n", clientes[i].status);
+            
+            printf("\nNovo status: ");
+            char novo_status[30];
+            fgets(novo_status, sizeof(novo_status), stdin);
+            novo_status[strcspn(novo_status, "\n")] = '\0';
+            
+            strcpy(clientes[i].status, novo_status);
+            salvarDados();
+            
+            printf("\nStatus atualizado com sucesso!\n");
+            encontrado = 1;
+            break;
+        }
+    }
+    
+    if (!encontrado) {
+        printf("\nCliente com CPF %s nao encontrado.\n", cpf_busca);
+    }
+    
+    printf("Pressione ENTER para continuar...");
+    limparBufferEntrada();
+}
+
+void exibirMenuPrincipal() {
+    int opcao;
+    
+    do {
+        printf("\n=====================================================================\n");
+        printf("|          SISTEMA DE GERENCIAMENTO - CLINICA HABILITAR             |\n");
+        printf("=====================================================================\n");
+        printf("| 1 - Abertura de processo - Renach                                 |\n");
+        printf("| 2 - Relatorio de atendimentos                                     |\n");
+        printf("| 3 - Consultar processo                                            |\n");
+        printf("| 4 - Atualizar status do processo                                  |\n");
+        printf("| 0 - Sair do sistema                                               |\n");
+        printf("=====================================================================\n");
+        printf("Escolha uma opcao: ");
+        
+        if (scanf("%d", &opcao) != 1) {
+            printf("Opcao invalida. Tente novamente.\n");
+            limparBufferEntrada();
+            continue;
+        }
+        
+        switch(opcao) {
+            case 1:
+                cadastrarCliente();
+                break;
+            case 2:
+                listarClientes();
+                break;
+            case 3:
+                buscarPorCPF();
+                break;
+            case 4:
+                atualizarStatus();
+                break;
+            case 0:
+                printf("\nSaindo do sistema...\n");
+                break;
+            default:
+                printf("Opcao invalida. Tente novamente.\n");
+                printf("Pressione ENTER para continuar...");
+                limparBufferEntrada();
+        }
+    } while (opcao != 0);
+}
+
+int main() {
+    // Tela de login
+    char login[20];
     int senha;
     
     printf("\n===================================================================\n");
-    printf("|                  SISTEMA DE GERENCIAMENTO - AUTOESCOLA           |\n");
-    printf("===================================================================\n");
-    printf("\nLogin: ");
-    scanf("%49s", login);
+    printf("|              SISTEMA DE GERENCIAMENTO - CLINICA HABILITAR         |\n");
+    printf("=====================================================================\n");
+    printf("\nLogin de acesso: ");
+    scanf("%19s", login);
+    
     printf("Senha: ");
     scanf("%d", &senha);
     limparBufferEntrada();
     
-    if (strcmp(login, LOGIN_ADMIN) == 0 && senha == SENHA_ADMIN) {
-        usuario_logado = 1;
-        printf("\nBem-vindo, Administrador!\n");
-        menuAdmin();
-    } else if (strcmp(login, LOGIN_INSTRUTOR) == 0 && senha == SENHA_INSTRUTOR) {
-        usuario_logado = 2;
-        printf("\nBem-vindo, Instrutor!\n");
-        menuInstrutor();
+    // Verificação de credenciais
+    if (strcmp(login, LOGIN_AD) == 0 && senha == SENHA_AD) {
+        printf("\nACESSO PERMITIDO!\n");
+        printf("Pressione ENTER para continuar...");
+        limparBufferEntrada();
+        
+        // Carrega os dados e exibe o menu
+        carregarDados();
+        exibirMenuPrincipal();
+        
+        printf("\n===================================================================\n");
+        printf("|               SESSAO ENCERRADA COM SUCESSO!                     |\n");
+        printf("===================================================================\n");
     } else {
-        printf("\nACESSO NEGADO. Credenciais inválidas.\n");
+        printf("\nACESSO NEGADO - Credenciais invalidas.\n");
     }
-}
-
-int main() {
-    carregarDados();
-    carregarInstrutores();
-    login();
+    
     return 0;
 }
